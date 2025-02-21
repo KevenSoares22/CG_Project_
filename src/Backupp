@@ -1,0 +1,216 @@
+import React, { useRef, useEffect, useState } from 'react';  
+import * as THREE from 'three';
+// Importando os controles
+import { TrackballControls } from 'three-stdlib';
+import { FlyControls } from 'three-stdlib'; // Certifique-se de importar FlyControls corretamente
+
+const App = () => {
+  const mountRef = useRef(null);
+  const [isPerspective, setIsPerspective] = useState(true);
+  const [isRotating, setIsRotating] = useState(false); // Controla a rotação da câmera
+  const [controlsType, setControlsType] = useState('trackball'); // Controle inicial
+  const cameraRef = useRef(null); // Referência para a câmera
+  const groupRef = useRef(null); // Referência para o grupo da cena
+  const controlsRef = useRef(null); // Referência para os controles (Trackball ou Fly)
+
+  useEffect(() => {
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x87CEEB); // Azul claro
+
+    // Criando a câmera
+    const perspectiveCamera = new THREE.PerspectiveCamera(
+      75,
+      window.innerWidth / window.innerHeight,
+      0.1,
+      1000
+    );
+    perspectiveCamera.position.set(0, 5, 20); // Ajuste a posição inicial para uma posição visível
+
+    const orthoCamera = new THREE.OrthographicCamera(
+      window.innerWidth / -200,
+      window.innerWidth / 200,
+      window.innerHeight / 200,
+      window.innerHeight / -200,
+      0.1,
+      1000
+    );
+    orthoCamera.position.set(0, 5, 10); // Ajuste a posição inicial para a câmera ortográfica
+
+    cameraRef.current = perspectiveCamera; // Inicializa a referência para a câmera
+
+    // Texturas e materiais
+    const textureLoader = new THREE.TextureLoader();
+    const concreteTexture = textureLoader.load('/concrete.jpg');
+    const windowTexture = textureLoader.load('/window.jpg');
+    const grassTexture = textureLoader.load('/grass.jpg');
+    const cloudsTexture = textureLoader.load('/cloud.jpg'); // Nova textura de nuvem
+
+    const material1 = new THREE.MeshStandardMaterial({ map: concreteTexture });
+    const material2 = new THREE.MeshStandardMaterial({ map: concreteTexture });
+    const material3 = new THREE.MeshStandardMaterial({ map: concreteTexture });
+    const material4 = new THREE.MeshStandardMaterial({ map: concreteTexture });
+
+    const windowMaterial = new THREE.MeshStandardMaterial({ map: windowTexture, transparent: true });
+
+    // Geometrias e objetos
+    const geometry1 = new THREE.BoxGeometry(2, 3, 1);
+    const geometry2 = new THREE.BoxGeometry(2.5, 4, 2);
+    const geometry3 = new THREE.BoxGeometry(3, 2, 1);
+    const geometry4 = new THREE.BoxGeometry(2, 3, 2);
+
+    const rect1 = new THREE.Mesh(geometry1, material1);
+    const rect2 = new THREE.Mesh(geometry2, material2);
+    const rect3 = new THREE.Mesh(geometry3, material3);
+    const rect4 = new THREE.Mesh(geometry4, material4);
+
+    // Criar janelas para cada edifício
+    const windowGeometry = new THREE.BoxGeometry(0.5, 0.5, 0.1);  // Menor caixa para as janelas
+    const window1_1 = new THREE.Mesh(windowGeometry, windowMaterial);
+    const window1_2 = new THREE.Mesh(windowGeometry, windowMaterial);
+    const window2_1 = new THREE.Mesh(windowGeometry, windowMaterial);
+    const window2_2 = new THREE.Mesh(windowGeometry, windowMaterial);
+    const window3_1 = new THREE.Mesh(windowGeometry, windowMaterial);
+    const window3_2 = new THREE.Mesh(windowGeometry, windowMaterial);
+    const window4_1 = new THREE.Mesh(windowGeometry, windowMaterial);
+    const window4_2 = new THREE.Mesh(windowGeometry, windowMaterial);
+
+    // Posicionamento dos edifícios
+    rect1.position.set(-4, 0, 0);
+    rect2.position.set(4, 0, 0);
+    rect3.position.set(2, 0, -5);
+    rect4.position.set(-2, 0, -10);
+
+    // Posicionamento das janelas
+    const windowHeight = 0.5; // Altura de cada janela
+    const building1Height = 3; // Altura do Edifício 1
+    const building2Height = 4; // Altura do Edifício 2
+    const building3Height = 2; // Altura do Edifício 3
+    const building4Height = 3; // Altura do Edifício 4
+
+    window1_1.position.set(-4, building1Height - 6 * windowHeight, 0.6);
+    window1_2.position.set(-4, building1Height - 6 * windowHeight, 0.6);
+
+    window2_1.position.set(4, building2Height - 6 * windowHeight, 1.1);
+    window2_2.position.set(4, building2Height - 6 * windowHeight, 1.1);
+
+    window3_1.position.set(2, building3Height - 4 * windowHeight, -4.4);
+    window3_2.position.set(2, building3Height - 4 * windowHeight, -4.4);
+
+    window4_1.position.set(-2, building4Height - 5 * windowHeight, -9.0);
+    window4_2.position.set(-2, building4Height - 5 * windowHeight, -9.0);
+
+    // Adicionando tudo à cena
+    scene.add(rect1);
+    scene.add(rect2);
+    scene.add(rect3);
+    scene.add(rect4);
+    scene.add(window1_1);
+    scene.add(window1_2);
+    scene.add(window2_1);
+    scene.add(window2_2);
+    scene.add(window3_1);
+    scene.add(window3_2);
+    scene.add(window4_1);
+    scene.add(window4_2);
+
+    // Adicionando as nuvens no céu
+    const skyGeometry = new THREE.SphereGeometry(500, 60, 40); // Criando uma esfera grande para o céu
+    const skyMaterial = new THREE.MeshBasicMaterial({
+      map: cloudsTexture,
+      side: THREE.BackSide, // Aplicar a textura ao lado interno da esfera
+      opacity: 0.4, // Transparência das nuvens
+      transparent: true
+    });
+    const sky = new THREE.Mesh(skyGeometry, skyMaterial);
+    scene.add(sky);
+
+    // Luzes
+    const ambientLight = new THREE.AmbientLight(0x404040, 1);
+    scene.add(ambientLight);
+
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+    directionalLight.position.set(5, 10, 5);
+    directionalLight.castShadow = true;
+    scene.add(directionalLight);
+
+    // Solo
+    const groundGeometry = new THREE.PlaneGeometry(1000, 1000);
+    const groundMaterial = new THREE.MeshStandardMaterial({ map: grassTexture });
+    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.y = -1.0;
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    // Renderizador
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    mountRef.current.appendChild(renderer.domElement);
+
+    // Inicialize os controles
+    if (controlsType === 'trackball') {
+      controlsRef.current = new TrackballControls(perspectiveCamera, renderer.domElement);
+    } else if (controlsType === 'fly') {
+      controlsRef.current = new FlyControls(perspectiveCamera, renderer.domElement);
+      controlsRef.current.movementSpeed = 50; // Ajuste a velocidade de movimento
+      controlsRef.current.lookSpeed = 0.1;   // Controle de velocidade de rotação da câmera
+      controlsRef.current.domElement = renderer.domElement;
+
+      // Definir uma posição inicial segura para a câmera
+      perspectiveCamera.position.set(0, 5, 20);
+    }
+
+    const animate = () => {
+      requestAnimationFrame(animate);
+
+      // Atualiza os controles
+      if (controlsRef.current) {
+        controlsRef.current.update();
+      }
+
+      // Renderiza a cena com a câmera apropriada
+      if (isPerspective) {
+        renderer.render(scene, perspectiveCamera);
+      } else {
+        renderer.render(scene, orthoCamera);
+      }
+    };
+
+    animate();
+
+    window.addEventListener('resize', () => {
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      perspectiveCamera.aspect = window.innerWidth / window.innerHeight;
+      perspectiveCamera.updateProjectionMatrix();
+
+      orthoCamera.left = window.innerWidth / -200;
+      orthoCamera.right = window.innerWidth / 200;
+      orthoCamera.top = window.innerHeight / 200;
+      orthoCamera.bottom = window.innerHeight / -200;
+      orthoCamera.updateProjectionMatrix();
+    });
+
+    const handleKeyPress = (event) => {
+      if (event.key === 'o' || event.key === 'O') {
+        setIsPerspective(false);
+      } else if (event.key === 'p' || event.key === 'P') {
+        setIsPerspective(true);
+      } else if (event.key === 't' || event.key === 'T') {
+        setControlsType('trackball'); // Alterna para TrackballControls
+      } else if (event.key === 'f' || event.key === 'F') {
+        setControlsType('fly'); // Alterna para FlyControls
+      }
+    };
+    window.addEventListener('keydown', handleKeyPress);
+
+    return () => {
+      mountRef.current.removeChild(renderer.domElement);
+      window.removeEventListener('keydown', handleKeyPress);
+    };
+  }, [isPerspective, controlsType]);
+
+  return <div ref={mountRef} />;
+};
+
+export default App;
